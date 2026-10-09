@@ -11,9 +11,12 @@ import java.io.File
  *
  * 目录按年/月分片（`photos/2026/10/<uuid>.webp`）：单目录塞几千个文件会让
  * 文件管理器和 `File.listFiles` 都变慢，分片是几乎零成本的预防。
+ *
+ * 构造函数刻意分两个：生产代码走 [Context]，测试直接给目录。
+ * 这样 [OrphanPhotoSweep] 这类只依赖文件系统的逻辑可以在纯 JVM 单测里
+ * 用真实的临时目录验证，而不需要伪造一个 Android `Context`。
  */
-class PhotoStore(context: Context) {
-
+class PhotoStore internal constructor(
     /**
      * 相对路径的基准目录，即 `filesDir`。
      *
@@ -21,7 +24,10 @@ class PhotoStore(context: Context) {
      * 本身已经带了 `photos/` 前缀，若再以 photos 目录为基准就会拼出
      * `photos/photos/...`。
      */
-    private val base: File = context.filesDir
+    private val base: File,
+) {
+
+    constructor(context: Context) : this(context.filesDir)
 
     /** 给新照片分配一个相对路径。不创建文件，只决定它该落在哪。 */
     fun allocateRelativePath(year: Int, month: Int, extension: String = "webp"): String =
@@ -68,6 +74,21 @@ class PhotoStore(context: Context) {
         true
     } catch (_: Exception) {
         false
+    }
+
+    /**
+     * 列出磁盘上全部配图的相对路径。
+     *
+     * 供「孤儿照片清扫」用来和数据库对账：进程在编辑页持有新导入、尚未落库的照片时
+     * 被杀，那些文件不会有任何数据库行引用，永远没人认领。
+     */
+    fun listAllRelativePaths(): List<String> {
+        val photoRoot = File(base, DIR_PHOTOS)
+        if (!photoRoot.isDirectory) return emptyList()
+        return photoRoot.walkTopDown()
+            .filter { it.isFile }
+            .map { it.relativeTo(base).path }
+            .toList()
     }
 
     companion object {

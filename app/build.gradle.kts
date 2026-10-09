@@ -18,6 +18,16 @@ android {
 
     buildTypes {
         release {
+            // AGP 默认不签名 release 包，产出的是 app-release-unsigned.apk，装不上。
+            // 这里复用 AGP 自己生成/管理的 debug keystore 给 release 签名：
+            // 「能直接装到自己手机上」是自用工具的核心需求，而生成与管理 keystore
+            // 需要用户手动执行 keytool 并保管密码，对一个自用应用是不必要的门槛。
+            //
+            // ⚠️ 这不适合任何形式的分发：debug keystore 是公开且固定的，
+            // 而且换机器就会变，升级时签名冲突。要正式分发必须自建 keystore，
+            // 见 README「版本与发布」。
+            signingConfig = signingConfigs.getByName("debug")
+
             // 本项目用到 R8 的规则很少：Compose 自带 consumer rules，
             // backdrop 是 Compose 库同样自带。保持默认 optimize 配置即可。
             optimization {
@@ -102,4 +112,7 @@ dependencies {
     // sqlite-jdbc 让 DAO 的 CRUD、级联删除、事务回滚能在本机真验，
     // 而不是靠 Robolectric（它会在测试运行期下载约 100MB 的 android-all）。
     testImplementation(libs.sqlite.jdbc)
+    // 同理：android.jar 里的 org.json 是「not mocked」桩，BackupCodec 一调 put 就抛。
+    // 用一份 API 等价的真实现替换，被验证的才是生产里真正跑的那段代码。
+    testImplementation(libs.org.json)
 }

@@ -26,6 +26,7 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.EntryRepository
+import com.vertin.chongleme.data.OrphanPhotoSweep
 import com.vertin.chongleme.theme.GlassTokens
 import com.vertin.chongleme.theme.LocalGlassContentColor
 import com.vertin.chongleme.theme.ProvideGlassTokens
@@ -64,9 +65,24 @@ fun ChonglemeRoot() {
     }
     val repository = container.repository
 
+    // 照片根目录：深层组件（时间轴卡片、相册、全屏查看器）通过 LocalPhotoStore 拿到它，
+    // 不必把 PhotoStore 一路当参数传下去。
+    val photoStore = container.photoStore
+
     // 冷启动读一次全量。仓库构造期不碰磁盘，所以这一步不能省。
-    LaunchedEffect(repository) {
-        repository.refresh()
+    LaunchedEffect(repository, photoStore) {
+        val loaded = try {
+            repository.refresh()
+        } catch (_: Exception) {
+            // 读库失败时**不**执行孤儿清扫：把「读不到」当成「没有记录」会删光全部照片。
+            // 清扫函数本身也有空列表保护，这里再挡一层是因为失败原因可能更微妙。
+            return@LaunchedEffect
+        }
+
+        // 对账清理孤儿照片：写入顺序是「先落盘、再写库」，进程若在两行之间被杀，
+        // 那份文件不会再有数据库行引用它，也不会被任何后续路径认领。
+        // 放在 refresh 之后、拿到真实记录列表之后执行，正是为了不误删。
+        runCatching { OrphanPhotoSweep.sweep(loaded, photoStore) }
     }
 
     val entries by repository.entries.collectAsStateWithLifecycle()
@@ -92,9 +108,7 @@ fun ChonglemeRoot() {
     val isDark = isSystemInDarkTheme()
     var tokens by remember(isDark) { mutableStateOf(GlassTokens.forTheme(isDark)) }
 
-    // 照片根目录：深层组件（时间轴卡片、相册、全屏查看器）通过这个局部值拿到它，
-    // 不必把 PhotoStore 一路当参数传下去。
-    val photoStore = container.photoStore
+    // 照片根目录已在上面取得（photoStore），这里不再重复构造。
 
     CompositionLocalProvider(LocalPhotoStore provides photoStore) {
         ProvideGlassTokens(tokens) {

@@ -143,7 +143,7 @@ object BackupCodec {
             if (rawPhotos != null) {
                 for (j in 0 until rawPhotos.length()) {
                     val p = rawPhotos.optJSONObject(j) ?: continue
-                    val relPath = p.optString(KEY_REL_PATH, "")
+                    val relPath = p.stringOr("", KEY_REL_PATH)
                     if (relPath.isBlank()) {
                         // 没有路径的配图行无法定位文件，直接丢弃并计数
                         skippedPhotos++
@@ -170,8 +170,8 @@ object BackupCodec {
                 },
                 intensity = obj.optInt(KEY_INTENSITY, INTENSITY_MIN)
                     .coerceIn(INTENSITY_MIN, INTENSITY_MAX),
-                mood = parseMood(obj.optString(KEY_MOOD, "")),
-                note = obj.optString(KEY_NOTE, ""),
+                mood = parseMood(obj.stringOr("", KEY_MOOD)),
+                note = obj.stringOr("", KEY_NOTE),
                 createdAt = obj.optLong(KEY_CREATED_AT, 0L),
                 updatedAt = obj.optLong(KEY_UPDATED_AT, 0L),
                 photos = photos,
@@ -182,6 +182,18 @@ object BackupCodec {
             return DecodeResult.Failure("备份里没有任何记录")
         }
         return DecodeResult.Success(entries, skippedPhotos)
+    }
+
+    /**
+     * 读取一个字符串字段。
+     *
+     * 刻意不用 `optString`：它会把数字、布尔值强制转成字符串（`42` → `"42"`），
+     * 于是「类型不符」和「正常字符串」在行为上无法区分。这里显式要求 JSON 字符串，
+     * 其余类型一律退化为默认值——符合本文件「宽容读取」的立场，也让行为可预期。
+     */
+    private fun JSONObject.stringOr(default: String, key: String): String {
+        val value = opt(key)
+        return if (value is String) value else default
     }
 
     /** 未知的心情名（比如旧版本写进去、新版本删掉了）退化成 null，而不是让整条记录失败。 */
