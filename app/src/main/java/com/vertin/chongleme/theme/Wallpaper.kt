@@ -11,32 +11,35 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 /**
- * 全应用唯一的背景层，同时也是液体玻璃的折射源。
+ * 背景层，同时也是液体玻璃的**折射源**。
  *
  * 两个关键决定：
  *
- * 1. **只做程序化绘制，不引任何图片资源。** 背景本身是「深夜渐变 + 三个柔和光斑」，
- *    它不需要是照片级的东西，但必须有明暗变化——玻璃才有东西可折射。
+ * 1. **纯程序化绘制，不引任何图片资源。** 背景是「深夜渐变 + 三个柔和光斑」，
+ *    不需要照片级质感，但必须有明暗变化——玻璃才有东西可折射。
  *
- * 2. **整个应用只有这一个 LayerBackdrop。** 每多一层 backdrop 就多一次离屏渲染，
- *    直接反映在滚动与拖动的手感上。页面里的玻璃控件共享这一个图层，
- *    而不是各自再开一层。
+ * 2. **[backdrop] 由调用方创建并传进来。** 每多一层 backdrop 就多一次离屏渲染，
+ *    直接反映在滚动与拖动的手感上。全应用只允许存在一个 `LayerBackdrop`
+ *    （在根组合里创建），所有玻璃控件共享它。这个约束是硬性的，不是风格偏好。
+ *
+ * 层叠顺序与官方 catalog 一致：背景层带 `layerBackdrop` 作为兄弟节点，
+ * 玻璃控件作为另一个兄弟节点采样它。
  */
 @Composable
-fun Wallpaper(modifier: Modifier = Modifier) {
+fun Wallpaper(
+    backdrop: LayerBackdrop,
+    modifier: Modifier = Modifier
+) {
     val isDark = isSystemInDarkTheme()
     val spec = remember(isDark) { WallpaperSpec.forTheme(isDark) }
-    val backdrop = rememberLayerBackdrop()
 
     Box(
         modifier
             .fillMaxSize()
-            // layerBackdrop 把这一层的绘制结果录进 graphicsLayer，
-            // 供所有玻璃控件按需采样。
             .layerBackdrop(backdrop)
             .drawWithCache {
                 val vertical = Brush.verticalGradient(
@@ -65,12 +68,12 @@ data class WallpaperSpec(
                 top = Colour.BackgroundTop,
                 bottom = Colour.BackgroundBottom,
                 glows = listOf(
-                    // 暖斑在右上，位置刻意偏离视觉中心，避免做成「发光球居中」的俗套
-                    Glow(color = Colour.GlowWarm, centerX = 0.78f, centerY = 0.18f, radius = 0.62f, alpha = 0.10f),
-                    // 冷斑在左下，半径更大、更淡，负责把画面撑开
-                    Glow(color = Colour.GlowCool, centerX = 0.18f, centerY = 0.72f, radius = 0.72f, alpha = 0.09f),
+                    // 暖斑在右上，刻意偏离视觉中心，避免做成「发光球居中」的俗套
+                    Glow(Colour.GlowWarm, centerX = 0.78f, centerY = 0.18f, radius = 0.62f, alpha = 0.10f),
+                    // 冷斑在左下，半径更大更淡，负责把画面撑开
+                    Glow(Colour.GlowCool, centerX = 0.18f, centerY = 0.72f, radius = 0.72f, alpha = 0.09f),
                     // 第三个小暖斑压在下缘，让底部不至于空掉
-                    Glow(color = Colour.GlowWarm, centerX = 0.55f, centerY = 0.98f, radius = 0.48f, alpha = 0.06f)
+                    Glow(Colour.GlowWarm, centerX = 0.55f, centerY = 0.98f, radius = 0.48f, alpha = 0.06f)
                 )
             )
         } else {
@@ -78,8 +81,8 @@ data class WallpaperSpec(
                 top = Color(0xFFF7F8FA),
                 bottom = Color(0xFFE8ECF2),
                 glows = listOf(
-                    Glow(color = Colour.GlowWarm, centerX = 0.80f, centerY = 0.16f, radius = 0.62f, alpha = 0.16f),
-                    Glow(color = Colour.GlowCool, centerX = 0.16f, centerY = 0.74f, radius = 0.72f, alpha = 0.14f)
+                    Glow(Colour.GlowWarm, centerX = 0.80f, centerY = 0.16f, radius = 0.62f, alpha = 0.16f),
+                    Glow(Colour.GlowCool, centerX = 0.16f, centerY = 0.74f, radius = 0.72f, alpha = 0.14f)
                 )
             )
         }
@@ -89,8 +92,8 @@ data class WallpaperSpec(
 /**
  * 一个径向光斑。
  *
- * 位置与半径用「相对画布的比例」而不是绝对像素，这样同一个 spec 在手机、
- * 折叠屏展开态、平板上都成立，不需要为每种尺寸重算。
+ * 位置与半径用「相对画布的比例」而不是绝对像素，这样同一份 spec 在手机、
+ * 折叠屏展开态、平板上都成立，不必为每种尺寸重算。
  */
 data class Glow(
     val color: Color,

@@ -11,6 +11,7 @@
     <!-- 刻意不声明 INTERNET：本应用完全离线，数据只在本机。 -->
 
     <application
+        android:name=".ChonglemeApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
