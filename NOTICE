@@ -1,0 +1,47 @@
+# NOTICE
+
+本软件包含来自第三方项目的代码与设计，特此致谢并保留其版权声明。
+
+---
+
+## Liquid Glass (Backdrop)
+
+本应用 `app/src/main/java/com/vertin/chongleme/ui/glass/` 下的玻璃控件，
+以该项目的官方示例组件（`LiquidButton`、`LiquidToggle`、`LiquidSlider`、
+`LiquidBottomTabs`、`LiquidTab` 及 `utils/DampedDragAnimation`、
+`utils/InteractiveHighlight`）为蓝本改写而成。
+
+- 项目：AndroidLiquidGlass
+- 作者：Kyant (https://github.com/Kyant0)
+- 源码：https://github.com/Kyant0/AndroidLiquidGlass
+- 许可：Apache License 2.0
+
+```
+Copyright 2025 Kyant
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+运行时通过 Maven 依赖 `io.github.kyant0:backdrop` 与 `io.github.kyant0:shapes` 引入，
+未复制其源代码进本仓库，仅按其示例组件的公开 API 用法与视觉参数重写。
+
+---
+
+## AndroidX / Jetpack Compose
+
+本项目使用 AndroidX 组件（`androidx.core`、`androidx.activity`、`androidx.lifecycle`）
+与 Jetpack Compose，均为 Apache License 2.0。
+
+## Coil
+
+图片加载使用 Coil (`io.coil-kt.coil3`)，Apache License 2.0。

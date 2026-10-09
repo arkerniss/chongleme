@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标主体：一只沙漏。它同时是应用首页的 hero 元素，保持同一造型语言。
+  使用 vector drawable 而非位图，因此没有任何二进制资源进仓库。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 上横梁 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,30 h36 a2,2 0 0 1 0,4 h-36 a2,2 0 0 1 0,-4 z" />
+
+    <!-- 下横梁 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,74 h36 a2,2 0 0 1 0,4 h-36 a2,2 0 0 1 0,-4 z" />
+
+    <!-- 沙漏外形（描边） -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineJoin="round"
+        android:pathData="M40,34 L40,42 L52,54 L40,66 L40,74 M68,34 L68,42 L56,54 L68,66 L68,74" />
+
+    <!-- 上半部分沙子（填充，表示已经流过一半） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,38 L65,38 L56,50 L52,50 z" />
+
+    <!-- 下半部分沙堆 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,70 L64,70 L56,60 L52,60 z" />
+</vector>

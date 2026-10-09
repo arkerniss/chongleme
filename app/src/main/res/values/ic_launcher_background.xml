@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 theme/Colour.kt 的背景底色一致，图标因此像是从夜里浮出来 -->
+    <color name="ic_launcher_background">#12151C</color>
+</resources>

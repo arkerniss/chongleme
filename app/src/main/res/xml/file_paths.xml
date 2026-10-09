@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  备份出来的 ZIP 放在 getExternalFilesDir(null)/backup/ 下，用户可用文件管理器
+  直接拷走，不需要任何存储权限。
+-->
+<paths>
+    <external-files-path
+        name="backup"
+        path="backup/" />
+</paths>
