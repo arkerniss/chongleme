@@ -82,6 +82,15 @@ class EntryDao(private val db: SqlDb) {
      */
     fun delete(id: Long): Boolean = db.execute(EntrySql.SQL_DELETE_BY_ID, listOf<Any?>(id)) > 0
 
+    /**
+     * 清空整表，返回删掉的行数。
+     *
+     * 一条语句而不是循环 [delete]：调用方（设置页的「清空全部数据」）用循环会让
+     * 仓库层每次删除后都整表重读，N 条记录退化成 O(N²) 次查询，
+     * 几百条记录时界面会静止十几秒。配图行由 `ON DELETE CASCADE` 一并消失。
+     */
+    fun deleteAll(): Int = db.execute(EntrySql.SQL_DELETE_ALL)
+
     fun byId(id: Long): Entry? =
         db.query(EntrySql.SQL_SELECT_BY_ID, listOf<Any?>(id)) { mapEntry(it) }.firstOrNull()
 

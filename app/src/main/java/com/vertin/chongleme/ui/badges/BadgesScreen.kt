@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
 import com.kyant.shapes.RoundedRectangle
+import com.vertin.chongleme.ui.rememberToday
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.achievements.Achievements
 import com.vertin.chongleme.data.achievements.LockedBadge
@@ -63,7 +64,7 @@ fun BadgesScreen(
     backdrop: Backdrop,
     entries: List<Entry>,
 ) {
-    val today = remember { todayKey() }
+    val today = rememberToday()
     val badges = remember(entries, today) { Achievements.evaluate(entries, today) }
     val unlockedCount = badges.count { it.isUnlocked }
 

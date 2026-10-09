@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  备份出来的 ZIP 放在 getExternalFilesDir(null)/backup/ 下，用户可用文件管理器
-  直接拷走，不需要任何存储权限。
-
   拍照的中转文件放在 cacheDir/capture/ 下：TakePicture 要求调用方先给出一个可写的
   content:// URI，相机 App 把原图写进去，我们读完立刻降采样转码并删除原图。
   没有下面这条 <cache-path>，FileProvider 会以「文件不在任何已声明的路径下」拒绝生成 URI。
+
+  注意这里**没有**备份目录：备份走系统文件选择器（SAF）导出，由用户自己挑保存位置，
+  本应用不再把 ZIP 落在 getExternalFilesDir 下——Android 11 起 Android/data/
+  下的内容不再允许第三方应用浏览，那个落点用户根本取不到。
 -->
 <paths>
-    <external-files-path
-        name="backup"
-        path="backup/" />
-
     <cache-path
         name="capture"
         path="capture/" />

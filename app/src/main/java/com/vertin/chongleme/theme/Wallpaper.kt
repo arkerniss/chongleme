@@ -1,6 +1,5 @@
 package com.vertin.chongleme.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -34,8 +33,7 @@ fun Wallpaper(
     backdrop: LayerBackdrop,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    val spec = remember(isDark) { WallpaperSpec.forTheme(isDark) }
+    val spec = remember { WallpaperSpec.Dark }
 
     Box(
         modifier
@@ -63,29 +61,22 @@ data class WallpaperSpec(
     val glows: List<Glow>
 ) {
     companion object {
-        fun forTheme(isDark: Boolean): WallpaperSpec = if (isDark) {
-            WallpaperSpec(
-                top = Colour.BackgroundTop,
-                bottom = Colour.BackgroundBottom,
-                glows = listOf(
-                    // 暖斑在右上，刻意偏离视觉中心，避免做成「发光球居中」的俗套
-                    Glow(Colour.GlowWarm, centerX = 0.78f, centerY = 0.18f, radius = 0.62f, alpha = 0.10f),
-                    // 冷斑在左下，半径更大更淡，负责把画面撑开
-                    Glow(Colour.GlowCool, centerX = 0.18f, centerY = 0.72f, radius = 0.72f, alpha = 0.09f),
-                    // 第三个小暖斑压在下缘，让底部不至于空掉
-                    Glow(Colour.GlowWarm, centerX = 0.55f, centerY = 0.98f, radius = 0.48f, alpha = 0.06f)
-                )
+        /**
+         * 唯一的背景 spec。本项目只有深色主题，理由见 [GlassTokens.Dark] 的注释——
+         * 简言之：文字色是硬编码的深色主题墨水，跟随系统浅色会得到不可读的界面。
+         */
+        val Dark = WallpaperSpec(
+            top = Colour.BackgroundTop,
+            bottom = Colour.BackgroundBottom,
+            glows = listOf(
+                // 暖斑在右上，刻意偏离视觉中心，避免做成「发光球居中」的俗套
+                Glow(Colour.GlowWarm, centerX = 0.78f, centerY = 0.18f, radius = 0.62f, alpha = 0.10f),
+                // 冷斑在左下，半径更大更淡，负责把画面撑开
+                Glow(Colour.GlowCool, centerX = 0.18f, centerY = 0.72f, radius = 0.72f, alpha = 0.09f),
+                // 第三个小暖斑压在下缘，让底部不至于空掉
+                Glow(Colour.GlowWarm, centerX = 0.55f, centerY = 0.98f, radius = 0.48f, alpha = 0.06f)
             )
-        } else {
-            WallpaperSpec(
-                top = Color(0xFFF7F8FA),
-                bottom = Color(0xFFE8ECF2),
-                glows = listOf(
-                    Glow(Colour.GlowWarm, centerX = 0.80f, centerY = 0.16f, radius = 0.62f, alpha = 0.16f),
-                    Glow(Colour.GlowCool, centerX = 0.16f, centerY = 0.74f, radius = 0.72f, alpha = 0.14f)
-                )
-            )
-        }
+        )
     }
 }
 

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
+import com.vertin.chongleme.ui.rememberToday
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.stats.Frequency
 import com.vertin.chongleme.data.stats.Stats
@@ -80,7 +81,7 @@ fun CalendarScreen(
     backdrop: Backdrop,
     entries: List<Entry>,
 ) {
-    val today = remember { todayKey() }
+    val today = rememberToday()
     var monthOffset by remember { mutableStateOf(0) }
     val month = remember(today, monthOffset) { CalendarMath.monthOf(today, monthOffset) }
 

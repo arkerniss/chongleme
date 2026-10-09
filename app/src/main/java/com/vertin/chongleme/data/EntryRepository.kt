@@ -112,6 +112,18 @@ class EntryRepository(
     /** 删除一条记录；配图由外键级联删除。返回是否真的删到了行。 */
     suspend fun delete(id: Long): Boolean = mutate { entryDao.delete(id) }
 
+    /**
+     * 清空全部记录（单事务）。返回删掉的记录数。
+     *
+     * 存在的理由：设置页原本是 `entries.forEach { delete(it.id) }`，而 [mutate]
+     * 每次都会整表重读一遍，于是清空 N 条记录要做 N 次全表扫描 —— O(N²)。
+     * 几百条记录时界面会静止十几秒，用户会以为卡死并强杀进程。
+     *
+     * 配图由 `entry` 的外键级联删除；磁盘上的图片文件不归这里管，
+     * 由调用方接着调 `PhotoStore.deleteAll()`。先删库再删文件，顺序不能反。
+     */
+    suspend fun deleteAll(): Int = mutate { entryDao.deleteAll() }
+
     /** 给已有记录补一张图，返回新 photo id。 */
     suspend fun addPhoto(entryId: Long, draft: PhotoDraft): Long =
         mutate { photoDao.insert(entryId, draft.relPath, draft.width, draft.height, createdAt = clock()) }

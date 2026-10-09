@@ -1,10 +1,19 @@
 package com.vertin.chongleme.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vertin.chongleme.AppTab
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.EntryRepository
 import com.vertin.chongleme.data.Mood
+import com.vertin.chongleme.util.todayKey
 import com.kyant.backdrop.Backdrop
 import java.time.LocalDate
 
@@ -34,7 +43,7 @@ import java.time.LocalDate
  * CalendarScreen(backdrop, entries)
  * GalleryScreen(backdrop, entries, onOpen)
  * BadgesScreen(backdrop, entries)
- * SettingsScreen(backdrop, repository, entries, onSelectTab)
+ * SettingsScreen(backdrop, repository, entries, onOpenTuner)
  * ```
  *
  * 参数含义：
@@ -43,7 +52,7 @@ import java.time.LocalDate
  * - `onRecord`：请求新建一条。外壳负责把编辑页推上来——「要不要弹编辑页」是导航决定。
  * - `onOpen`：请求打开某条记录的编辑页。
  * - `onDone`：编辑完成（保存或取消），外壳据此关闭编辑页。
- * - `onSelectTab`：跳转到另一个 tab（目前只有设置页用得上，比如从设置引导回今天）。
+ * - `onOpenTuner`：打开玻璃调参页（仅 debug 包有效）。
  */
 
 /**
@@ -69,6 +78,39 @@ val Mood.displayName: String
         Mood.Stressed -> "紧绷"
         Mood.Excited -> "兴奋"
     }
+
+/**
+ * 「今天」的日期键，会随界面重新可见而刷新。
+ *
+ * ## 为什么不能用 `remember { todayKey() }`
+ *
+ * 那样只在进入组合时求值一次，之后永不更新。而这个应用的使用方式恰恰是
+ * 「晚上记录完不退后台，第二天早上继续用」——此时 `today` 还停在昨天：
+ * 今天的记录会被归到「更早」分组，连续天数、本周次数、徽章进度全部基于昨天。
+ * 用户在「今天」分组里看不到自己刚记的东西，会以为没存上。
+ *
+ * ## 为什么不挂午夜定时器
+ *
+ * 那需要一个常驻的延时任务，收益却很小：用户看不见界面时算得对不对并不重要，
+ * 重要的是**看到界面时是对的**。所以只在 `ON_RESUME` 时重算——
+ * 这正好覆盖了「切回前台发现跨天了」这个真实场景。
+ */
+@Composable
+fun rememberToday(): LocalDate {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var today by remember(lifecycleOwner) { mutableStateOf(todayKey()) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                today = todayKey()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return today
+}
 
 /**
  * 把时间戳转成「今天 / 昨天 / 具体日期」的展示文案。

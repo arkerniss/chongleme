@@ -47,5 +47,8 @@ internal object EntrySql {
 
     const val SQL_DELETE_BY_ID: String = "DELETE FROM $TABLE WHERE id = ?"
 
+    /** 清空整表。配图行由外键级联删除。 */
+    const val SQL_DELETE_ALL: String = "DELETE FROM $TABLE"
+
     const val SQL_COUNT: String = "SELECT COUNT(*) FROM $TABLE"
 }

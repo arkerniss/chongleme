@@ -1,6 +1,5 @@
 package com.vertin.chongleme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -81,8 +80,10 @@ fun ChonglemeRoot() {
 
         // 对账清理孤儿照片：写入顺序是「先落盘、再写库」，进程若在两行之间被杀，
         // 那份文件不会再有数据库行引用它，也不会被任何后续路径认领。
-        // 放在 refresh 之后、拿到真实记录列表之后执行，正是为了不误删。
+        //
+        // 用 catch 兜住：清扫失败绝不能影响启动。它只是打扫卫生，不是关键路径。
         runCatching { OrphanPhotoSweep.sweep(loaded, photoStore) }
+            .onFailure { /* 静默：清扫不是关键路径，失败不影响任何功能 */ }
     }
 
     val entries by repository.entries.collectAsStateWithLifecycle()
@@ -101,12 +102,11 @@ fun ChonglemeRoot() {
     val backdrop = rememberLayerBackdrop()
 
     // 玻璃参数提到根部持有：这样 debug 包的调参页拖动滑块时，**整个应用**都跟着变，
-    // 而不只是调参浮层里的示例区。release 包里调参页整段被 R8 消除，此处恒为 Dark。
+    // 而不只是调参浮层里的示例区。
     //
-    // 注意 isSystemInDarkTheme() 本身是 @Composable，必须先求值再喂给 remember——
-    // 直接写进 remember 的 lambda 里编译器会报「@Composable 调用不在 @Composable 上下文」。
-    val isDark = isSystemInDarkTheme()
-    var tokens by remember(isDark) { mutableStateOf(GlassTokens.forTheme(isDark)) }
+    // 注意这里刻意**不**跟随系统深浅色：全应用文字色是硬编码的深色主题墨水，
+    // 跟随系统会在浅色模式下得到「浅底 + 近白字」。本项目只有深色一种主题。
+    var tokens by remember { mutableStateOf(GlassTokens.Dark) }
 
     // 照片根目录已在上面取得（photoStore），这里不再重复构造。
 
@@ -125,7 +125,6 @@ fun ChonglemeRoot() {
                     entries = entries,
                     onRecord = { editingId = NEW_ENTRY },
                     onOpen = { entry -> editingId = entry.id },
-                    onSelectTab = { selected -> tabOrdinal = selected.ordinal },
                     onOpenTuner = { showTuner = true },
                 )
 

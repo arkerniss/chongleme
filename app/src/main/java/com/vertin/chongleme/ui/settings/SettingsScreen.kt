@@ -1,6 +1,5 @@
 package com.vertin.chongleme.ui.settings
 
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -30,9 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import com.kyant.backdrop.Backdrop
-import com.vertin.chongleme.AppTab
 import com.vertin.chongleme.BuildConfig
 import com.vertin.chongleme.backup.BackupService
 import com.vertin.chongleme.data.Entry
@@ -59,7 +56,6 @@ fun SettingsScreen(
     backdrop: Backdrop,
     repository: EntryRepository,
     entries: List<Entry>,
-    onSelectTab: (AppTab) -> Unit,
     onOpenTuner: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -73,6 +69,37 @@ fun SettingsScreen(
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+
+    /**
+     * 导出到用户自己挑的位置（系统文件选择器）。
+     *
+     * 这是**推荐**的导出方式：Android 11 起 `Android/data/` 下的内容不再允许
+     * 第三方应用浏览，所以「导出到应用目录，再用文件管理器拷走」在多数手机上走不通。
+     * 让用户直接选保存位置（下载目录、网盘客户端等）才是真正可用的路径。
+     */
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            busy = true
+            statusMessage = "正在导出…"
+            val result = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    backup.exportTo(out)
+                } ?: BackupService.ExportResult.Failure("无法写入所选位置")
+            }.getOrElse { error ->
+                BackupService.ExportResult.Failure("写入失败：${error.message ?: error.javaClass.simpleName}")
+            }
+
+            statusMessage = when (result) {
+                is BackupService.ExportResult.Failure -> "导出失败：${result.reason}"
+                is BackupService.ExportResult.Success ->
+                    "已保存 ${result.entryCount} 条记录、${result.photoCount} 张配图"
+            }
+            busy = false
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -133,26 +160,7 @@ fun SettingsScreen(
         }
 
         GlassButton(
-            onClick = {
-                scope.launch {
-                    busy = true
-                    statusMessage = "正在导出…"
-                    when (val result = backup.export()) {
-                        is BackupService.ExportResult.Failure -> {
-                            statusMessage = "导出失败：${result.reason}"
-                        }
-
-                        is BackupService.ExportResult.Success -> {
-                            val kb = result.bytes / 1024
-                            statusMessage = "已导出 ${result.entryCount} 条记录、" +
-                                    "${result.photoCount} 张配图（${kb}KB）\n" +
-                                    result.file.absolutePath
-                            shareExported(context, result.file.absolutePath)
-                        }
-                    }
-                    busy = false
-                }
-            },
+            onClick = { exportLauncher.launch(backupFileName()) },
             backdrop = backdrop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -160,7 +168,7 @@ fun SettingsScreen(
             enabled = !busy,
         ) {
             BasicText(
-                text = "导出备份",
+                text = "导出备份（选择保存位置）",
                 style = TextStyle(color = Colour.InkOnDark, fontSize = 15.sp, fontWeight = FontWeight.Medium),
             )
         }
@@ -180,9 +188,9 @@ fun SettingsScreen(
         }
 
         Hint(
-            "备份会导出成 ZIP，可用文件管理器从 " +
-                    "Android/data/${context.packageName}/files/backup/ 拷走。" +
-                    "导入只追加记录，永远不会覆盖或删除已有数据。"
+            "导出会弹系统文件选择器，你可以存到下载目录、网盘客户端或任何找得到的地方——" +
+                    "导出的 ZIP 里包含全部记录与照片。\n" +
+                    "导入只追加记录，永远不会覆盖或删除已有数据；同一个备份导入两次会得到两份记录。"
         )
 
         statusMessage?.let { message ->
@@ -290,7 +298,11 @@ fun SettingsScreen(
                     scope.launch {
                         busy = true
                         val removed = entries.size
-                        entries.forEach { repository.delete(it.id) }
+                        // 一条 DELETE 语句清库，而不是逐条删：逐条会在写调度器上
+                        // 触发 N 次「删一行 + 全表重读」，几百条记录时界面会静止十几秒，
+                        // 用户以为卡死。先删库、再删文件，顺序不能反——反过来的话
+                        // 中途失败会留下一批没有任何记录引用的图片。
+                        repository.deleteAll()
                         photoStore.deleteAll()
                         statusMessage = "已清空 $removed 条记录"
                         busy = false
@@ -308,33 +320,17 @@ fun SettingsScreen(
     }
 }
 
+
 /**
- * 导出完成后拉一下系统分享面板。
+ * 导出时预填的文件名。
  *
- * 走 `FileProvider` 而不是直接给路径：Android 7 起直接把 `file://` 路径塞进 Intent
- * 会抛 `FileUriExposedException`，而且用户在多数的分享目标里也确实需要一个 URI。
- * 分享失败不影响导出本身——文件已经在磁盘上了，所以这里吞掉异常但不静默：
- * 上方的状态文案始终显示文件路径。
+ * 用本地时间而不是 UTC：这是在用户自己的文件管理器里看到的字符串，
+ * 用他所在时区的时间才不会对不上「我刚几点导的」。
  */
-private fun shareExported(context: android.content.Context, absolutePath: String) {
-    try {
-        val file = java.io.File(absolutePath)
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file,
-        )
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/zip"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(
-            Intent.createChooser(intent, "保存备份").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    } catch (_: Exception) {
-        // 没有可用的分享目标时保持安静：文件已经导出成功，状态栏里也有路径
-    }
+private fun backupFileName(): String {
+    val stamp = java.text.SimpleDateFormat("yyyy-MM-dd_HHmmss", java.util.Locale.US)
+        .format(java.util.Date())
+    return "冲了吗-backup-$stamp.zip"
 }
 
 @Composable

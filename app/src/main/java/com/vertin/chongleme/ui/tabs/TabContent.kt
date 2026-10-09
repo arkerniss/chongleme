@@ -28,7 +28,6 @@ fun TabContent(
     entries: List<Entry>,
     onRecord: () -> Unit,
     onOpen: (Entry) -> Unit,
-    onSelectTab: (AppTab) -> Unit,
     onOpenTuner: () -> Unit,
 ) {
     when (tab) {
@@ -60,7 +59,6 @@ fun TabContent(
             backdrop = backdrop,
             repository = repository,
             entries = entries,
-            onSelectTab = onSelectTab,
             onOpenTuner = onOpenTuner,
         )
     }

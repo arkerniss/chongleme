@@ -88,8 +88,9 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
 ./gradlew :app:testDebugUnitTest
 ```
 
-覆盖统计口径（连续天数、热力图、频率）、徽章规则、JSON 编解码与 DAO 的边界情况：
-空列表、跨月、跨年、时区边界、闰日、连续中断、单日多条。
+覆盖统计口径（连续天数、热力图、频率）、徽章规则、备份的 JSON 编解码与 ZIP 往返、
+**备份服务层的完整往返（导出 → 清空 → 导入 → 逐字段核对）**、DAO 与孤儿照片清扫：
+空列表、跨月、跨年、时区边界、闰日、连续中断、单日多条、畸形输入、重复导入不覆盖。
 
 ---
 
@@ -103,8 +104,13 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
 - 应用**没有**网络权限
 - `allowBackup=false`，且 `data_extraction_rules.xml` 排除云备份与换机迁移
 - 卸载应用 = 数据彻底消失，**这是设计意图**
-- 想保留数据就用设置里的「导出备份」，会生成一个 ZIP 放在
-  `Android/data/com.vertin.chongleme/files/backup/`，可用文件管理器直接拷走
+- 想保留数据就用设置里的「导出备份」：会弹出系统文件选择器，你自己挑保存位置
+  （下载目录、网盘客户端都行）。导出的 ZIP 里含全部记录与照片
+- 导入是**只追加**的：同一个备份导入两次会得到两份记录，但永远不会覆盖或删除已有数据
+
+> 为什么不把备份写到 `Android/data/<包名>/files/`：从 Android 11 起，
+> 该目录下的内容不再允许第三方应用（包括系统文件管理器）浏览，用户根本取不到。
+> 让用户自己选保存位置才是真正可用的路径。
 
 ---
 
@@ -114,13 +120,19 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
 每次发布打一个 tag，APK 作为 Release 附件：
 
 ```bash
-./构建APK-compose.sh                  # 构建并归档
+# 1) 改 app/build.gradle.kts：versionCode +1、versionName "0.2.0"
+./gradlew :app:assembleRelease
+# 2) 产物在 app/build/outputs/apk/release/app-release.apk
+git add -A && git commit -m "chore: bump to 0.2.0" && git push
 git tag v0.2.0 && git push origin v0.2.0
-gh release create v0.2.0 <apk路径> --title "v0.2.0" --notes "..."
+gh release create v0.2.0 app/build/outputs/apk/release/app-release.apk \
+   --title "v0.2.0" --notes "…"
 ```
 
-> ⚠️ release 包目前用 Android 默认的 debug keystore 签名，**仅供自己装机使用**。
-> 要正式分发需自建 keystore 并配置 `signingConfigs`，否则换签名会有覆盖安装冲突。
+> ⚠️ release 包目前用 Android 默认的 debug keystore 签名（见 `app/build.gradle.kts`
+> 的 `signingConfig = signingConfigs.getByName("debug")`），**仅供自己装机使用**：
+> 能直接装到手机上，但 debug keystore 是公开且固定的，换机器就会变，
+> 升级时会出现签名冲突。要正式分发需自建 keystore 并配置 `signingConfigs`。
 
 ---
 

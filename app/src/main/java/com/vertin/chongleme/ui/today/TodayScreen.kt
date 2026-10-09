@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
+import com.vertin.chongleme.ui.rememberToday
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.EntryRepository
 import com.vertin.chongleme.theme.Colour
@@ -52,7 +53,7 @@ fun TodayScreen(
     onRecord: () -> Unit,
     onOpen: (Entry) -> Unit,
 ) {
-    val today = remember { java.time.LocalDate.now() }
+    val today = rememberToday()
     val todayEntries = remember(entries, today) {
         entries.filter { DayKey.of(it.occurredAt) == today }
             .sortedByDescending { it.occurredAt }

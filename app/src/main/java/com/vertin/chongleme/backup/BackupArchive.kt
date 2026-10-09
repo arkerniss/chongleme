@@ -2,7 +2,9 @@ package com.vertin.chongleme.backup
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -22,6 +24,79 @@ import java.util.zip.ZipOutputStream
 object BackupArchive {
 
     const val ENTRY_MANIFEST: String = "entries.json"
+
+    /**
+     * 流式写到调用方给的输出流（例如用户通过系统文件选择器挑的目标）。
+     *
+     * 与 [writeStreamingToFile] 同样的内存立场：任意时刻内存里只有一张配图的字节。
+     * 不在这里关闭 [out]——它归调用方（通常是 `ContentResolver.openOutputStream`）管。
+     */
+    fun writeStreamingTo(
+        out: OutputStream,
+        manifestJson: String,
+        photoPaths: Sequence<String>,
+        photoBytes: (String) -> ByteArray?,
+    ): String? = try {
+        ZipOutputStream(out.buffered()).use { zip ->
+            zip.putNextEntry(ZipEntry(ENTRY_MANIFEST))
+            zip.write(manifestJson.toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+
+            photoPaths.forEach { path ->
+                val bytes = photoBytes(path) ?: return@forEach
+                zip.putNextEntry(ZipEntry(path))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        null
+    } catch (e: Throwable) {
+        // 见 writeStreamingToFile：必须抓 Throwable，OutOfMemoryError 是 Error。
+        "导出失败：${e.javaClass.simpleName}${e.message?.let { " · $it" } ?: ""}"
+    }
+
+    /**
+     * 流式写盘：边读边压边写，**不**在内存里拼出整个 ZIP。
+     *
+     * 存在的理由：早先的 [write] 会先把全部配图字节收进 `Map<String, ByteArray>`，
+     * 再拼成一个 `ByteArray`，最后才落盘。一个用了两年的相册（几百张 2048px WebP）
+     * 峰值内存可达数百 MB，直接 OOM——而「导出备份」是本应用唯一的数据退路，
+     * 它崩掉等于用户没有退路。
+     *
+     * 失败时删除半成品，不留一个看似成功、实则截断的 ZIP：那种文件比没有更危险，
+     * 因为用户会以为备份好了。
+     *
+     * @param photoBytes 按需提供每张配图的字节；返回 null 表示文件缺失，跳过该张。
+     * @return 成功时为 null，失败时为可读原因。
+     */
+    fun writeStreamingToFile(
+        target: File,
+        manifestJson: String,
+        photoPaths: Sequence<String>,
+        photoBytes: (String) -> ByteArray?,
+    ): String? = try {
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, "${target.name}.tmp")
+
+        FileOutputStream(temp).use { fileOut ->
+            writeStreamingTo(fileOut, manifestJson, photoPaths, photoBytes)?.let { error ->
+                temp.delete()
+                return error
+            }
+        }
+
+        if (target.exists()) target.delete()
+        if (!temp.renameTo(target)) {
+            temp.delete()
+            return "无法写入目标文件：${target.absolutePath}"
+        }
+        null
+    } catch (e: Throwable) {
+        // 包括 OutOfMemoryError：它是 Error 不是 Exception，用 catch(Exception) 会漏掉，
+        // 结果是应用直接闪退且用户得不到任何解释。
+        File(target.parentFile, "${target.name}.tmp").delete()
+        "导出失败：${e.javaClass.simpleName}${e.message?.let { " · $it" } ?: ""}"
+    }
 
     /** 把 manifest 与各配图字节打成一个 ZIP。 */
     fun write(manifestJson: String, photos: Map<String, ByteArray>): ByteArray {

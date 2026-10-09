@@ -119,21 +119,19 @@ data class GlassTokens(
 
     companion object {
 
-        /** 深色（本项目的主基调）。 */
-        val Dark = GlassTokens()
-
         /**
-         * 浅色。表面色改用 [Colour.SurfaceLight]，所以文字必须跟着换成
-         * [Colour.InkOnLight]，否则浅底浅字。
+         * 唯一的玻璃 token 档。**本项目刻意只有深色**。
+         *
+         * 这里原本还有一个 `Light` 档，但那是半成品：全应用约 80 处文字直接硬编码了
+         * `Colour.InkOnDark`（近白），根本不读 token 里的 `contentColor`，
+         * 于是系统切到浅色时会得到「浅底 + 近白字」，对比度约 1.04:1，界面等于不可读。
+         *
+         * 与其留一个切过去就坏的分支，不如不放这个开关：这是个夜里用的私人本子，
+         * 浅色版本需要重新设计整套玻璃的对比度与表面色，不是换几个色值的事。
+         * 真要做浅色，正确做法是引入一个 `LocalInk` 组合局部、把那些硬编码色值全部
+         * 收敛到它，再逐屏核对对比度——那是独立的一项工作。
          */
-        val Light = GlassTokens(
-            surfaceColor = Colour.SurfaceLight.copy(alpha = 0.42f),
-            fallbackSurfaceColor = Colour.SurfaceLight.copy(alpha = 0.94f),
-            contentColor = Colour.InkOnLight,
-            contentMutedColor = Colour.InkMutedOnLight
-        )
-
-        fun forTheme(isDark: Boolean): GlassTokens = if (isDark) Dark else Light
+        val Dark = GlassTokens()
     }
 }
 

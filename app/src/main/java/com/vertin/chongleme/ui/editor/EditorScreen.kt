@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.kyant.backdrop.Backdrop
+import com.vertin.chongleme.ui.rememberToday
 import com.vertin.chongleme.data.Entry
 import com.vertin.chongleme.data.EntryRepository
 import com.vertin.chongleme.data.Intensity
@@ -111,7 +112,7 @@ fun EditorScreen(
     val context = LocalContext.current
     val store = LocalPhotoStore.current
     val scope = rememberCoroutineScope()
-    val today = remember { todayKey() }
+    val today = rememberToday()
 
     // 草稿用 rememberSaveable：写到一半被系统回收、或转屏，回来时字还在。
     var draft by rememberSaveable(stateSaver = EditorDraftSaver) {
